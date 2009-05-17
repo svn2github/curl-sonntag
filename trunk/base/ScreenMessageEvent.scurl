@@ -1,0 +1,120 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        {docref ScreenMessageEventTarget} が {pop スクリーンメッセージ}
+        をブロードキャストするために使用するイベント。
+    }
+}
+{define-class public ScreenMessageEvent {inherits BroadcastEvent}
+
+  {doc-next {purpose {pop スクリーンメッセージ} の値。}}
+  field public message:any
+
+  {constructor public {default
+                          message:any,
+                          sender:#BroadcastEventTarget = null
+                      }
+    {construct-super sender = sender}
+    set self.message = message
+  }
+
+}
+
+{doc-next
+    {purpose {pop スクリーンメッセージ} を送受信するクラス。}
+}
+{define-class public ScreenMessageEventTarget {inherits BroadcastEventTarget}
+
+  {constructor public {default}
+    {construct-super
+        {on e:ScreenMessageEvent do
+            {self.handle-message e.sender, e.message}
+        }
+    }
+  }
+
+  {doc-next
+    {purpose {pop スクリーンメッセージ} を送信します。}
+    {parameter message, メッセージ。}
+    {parameter target,
+        送信先の {docref BroadcastEventTarget}。
+        {ctext null} の場合は全体にブロードキャストします。
+    }
+    {details
+        このメソッドはメッセージを非同期で送信します。
+        同期的に送信する場合は {docref-abbr ScreenMessageEventTarget.send-message-sync}
+        を使用してください。
+    }
+  }
+  {method public {send-message
+                     message:any,
+                     target:#BroadcastEventTarget = null,
+                     position:EventQueuePosition = EventQueuePosition.tail
+                 }:void
+    {self.send-event
+        {ScreenMessageEvent message, sender = self},
+        target = target,
+        position = position
+    }
+  }
+
+  {doc-next
+    {purpose {pop スクリーンメッセージ} 直ちに送信します。}
+    {parameter message, メッセージ。}
+    {parameter target,
+        送信先の {docref BroadcastEventTarget}。
+        {ctext null} の場合は全体にブロードキャストします。
+    }
+    {details
+        このメソッドはメッセージを同期的に送信します。
+        非同期で送信する場合は {docref-abbr ScreenMessageEventTarget.send-message}
+        を使用してください。
+    }
+  }
+  {method public {send-message-sync
+                     message:any,
+                     target:#BroadcastEventTarget = null
+                 }:void
+    {self.send-event-sync
+        {ScreenMessageEvent message, sender = self},
+        target = target
+    }
+  }
+
+  {doc-next
+    {purpose {pop スクリーンメッセージ} を受信した場合に呼び出されます。}
+    {parameter sender,
+        メッセージ送信元の {docref BroadcastEventTarget}。
+    }
+    {parameter message, メッセージ。}
+    {override
+        {pop スクリーンメッセージ} の受信処理を定義する場合は、
+        このメソッドをオーバーライドします。
+    }
+  }
+  {method protected {handle-message
+                        sender:#BroadcastEventTarget,
+                        message:any
+                    }:void
+  }
+
+}

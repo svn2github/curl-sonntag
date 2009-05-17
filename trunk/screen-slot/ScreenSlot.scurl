@@ -1,0 +1,129 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        {pop スクリーングラフィック} が存在する {docref ScreenSlot}。
+    }
+}
+{define-nonlocal-option public screen-slot:#ScreenSlot = null}
+
+{doc-next
+    {purpose
+        {pop スクリーンスロット} は {pop スクリーングラフィック}
+        を格納する {docref BaseFrame} です。
+    }
+    {details
+        {pop スクリーンスロット} は {docref ScreenFeed}
+        を受け取って {pop スクリーングラフィック} を自身に配置します。
+
+        {ctext ScreenSlot} は以下のいずれかの方法で {docref ScreenFeed}
+        を受け取ります。
+        {itemize
+            {item コンストラクタの残余引数。}
+            {item {docref-abbr ScreenSlot.feed} オプションの値。}
+        }
+
+        {docref display-screen} はスクリーンスロットを指定して、その
+        {docref-abbr ScreenSlot.feed} オプションに {docref ScreenFeed}
+        を設定するためのマクロです。
+        ({docref display-screen} のドキュメントを参照してください。)
+
+        {docref ScreenFeed} からの {pop スクリーン} の生成はなるべく遅延されます。
+        具体的には、スクリーングラフィックを表示する必要がある場合、または
+        {docref-abbr ScreenSlot.base-screen} ゲッターが呼び出された時点で作成されます。
+    }
+}
+{define-class public ScreenSlot {inherits BaseFrame}
+
+  field private _base-screen:#BaseScreen
+
+  {doc-next
+    {purpose このオブジェクトを作成します。}
+    {parameter ...,
+        {docref BaseFrame} に渡されます。
+        {docref ScreenFeed} が含まれる場合は {docref-abbr ScreenSlot.feed}
+        オプションの値にセットされます。
+    }
+  }
+  {constructor public {default ...}
+    {{get-screen-slot-manager}.register-slot self}
+    set self.screen-slot = self
+    {construct-super ...}
+  }
+
+  {doc-next
+    {purpose このスクリーンスロットが格納する {pop スクリーン}。}
+  }
+  {getter public {base-screen}:#BaseScreen
+    {if-non-null screen = self._base-screen then
+        {return screen}
+    }
+    {self.attempt-generate-screen}
+    {return self._base-screen}
+  }
+
+  {doc-next
+    {purpose {pop スクリーン} の取得に使用する {docref ScreenFeed}。}
+  }
+  {local-option public feed:#ScreenFeed = null
+    set self._base-screen = null
+    {self.clear}
+    {if self.display-context != null then
+        {self.attempt-generate-screen}
+    }
+  }
+
+  {nonlocal-option public display-context:#DisplayContext
+    {if display-context != null then
+        {self.attempt-generate-screen}
+    }
+  }
+
+  {method public {add g:any, ...}:#Visual
+    {try
+        def feed = g asa ScreenFeed
+        set self.feed = feed
+        {return
+            {if-non-null c = self.child then
+                c.graphic
+             else
+                null
+            }
+        }
+     catch ex:CastException do
+    }
+    {return {super.add g, ...}}
+  }
+
+  {doc-next
+    {purpose
+        {pop スクリーン} が要求された場合に呼び出されて必要があれば作成します。
+    }
+  }
+  {method protected {attempt-generate-screen}:void
+    {if self._base-screen != null or self.feed == null then
+        {return}
+    }
+    set self._base-screen = {self.feed.to-Screen}
+    {self.add-internal replace? = true, self._base-screen.graphic}
+  }
+
+}

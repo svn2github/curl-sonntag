@@ -1,0 +1,168 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose {pop スクリーン} 提供するオブジェクト。}
+    {details
+        {ctext ScreenFeed} は主に {docref ScreenSlot} に
+        {pop スクリーン} を配置する場合に使用します。
+        ({docref ScreenSlot} のコンストラクタ、または {docref ScreenSlot.feed}
+        に {ctext ScreenFeed} を指定できます。)
+
+        {ctext ScreenFeed} が要求される個所では、
+        以下で示すオブジェクトを代わりに使用することができます。
+
+        {itemize
+            {item スクリーンの {docref ClassType}。}
+            {item スクリーンのクラスを指定する修飾名文字列。
+                ({ctext "COM.YOUR.PACKAGE.FooBarScreen"}
+                のようにパッケージ名とクラス名を繋げた文字列。)
+            }
+            {item スクリーンを返すプロシージャ。
+                ({ctext {proc-type {}:{docref BaseScreen}}})
+            }
+            {item スクリーンオブジェクト。
+                ({docref BaseScreen} は {ctext ScreenFeed}
+                を継承します。)
+            }
+        }
+
+        {ctext ScreenFeed} は {docref-abbr ScreenFeed.to-Screen}
+        が最初に呼び出されたときにスクリーンのインスタンスを作成します。
+        (スクリーンオブジェクト自体を {ctext ScreenFeed}
+        として使用した場合などを除く。)
+    }
+}
+{define-class public abstract ScreenFeed
+
+  {doc-next
+    {purpose
+        この {ctext ScreenFeed} 自体が {pop スクリーン}
+        である場合に {ctext true} を返します。
+    }
+  }
+  {getter public {is-screen?}:bool
+    {return self isa BaseScreen}
+  }
+
+  {doc-next
+    {purpose この {ctext ScreenFeed} が提供する {pop スクリーン} を返します。}
+  }
+  {method public abstract {to-Screen}:BaseScreen}
+
+  ||| delegating factories
+
+  {factory public implicit {from-ClassType type:ClassType}:ScreenFeed
+    {return {LazyScreenFeed.from-ClassType type}}
+  }
+
+  {factory public implicit {from-proc
+                               factory:{proc-type {}:BaseScreen}
+                           }:ScreenFeed
+    {return {LazyScreenFeed factory}}
+  }
+
+  {factory public implicit {from-qname
+                               qname:String,
+                               manifest:ComponentManifest = {get-current-manifest}
+                           }:ScreenFeed
+    {return
+        {LazyScreenFeed.from-qname
+            qname,
+            manifest = manifest
+        }
+    }
+  }
+
+}
+
+{define-class LazyScreenFeed {inherits ScreenFeed}
+
+  field constant factory:{proc-type {}:BaseScreen}
+  field private screen:#BaseScreen
+
+  {constructor implicit {default factory:{proc-type {}:BaseScreen}}
+    set self.factory = factory
+  }
+
+  {constructor implicit {from-ClassType type:ClassType}
+    {if not {type.subtype-of? BaseScreen} then
+        {error {lmessage '{value type}' is not a subtype of BaseScreen.}}
+    }
+    set self.factory =
+        {fn =>
+            {with-compiler-directives
+                allow-any-calls? = true
+             do
+                {new type}
+            } asa BaseScreen
+        }
+  }
+
+  {constructor {dynamic-lookup
+                   package-selector:ComponentSelector,
+                   name:String,
+                   manifest:ComponentManifest = {get-current-manifest}
+               }
+    set self.factory =
+        {fn =>
+            def type = {dynamic-lookup
+                           package-selector,
+                           name,
+                           manifest = manifest
+                       }
+            def delegate = {LazyScreenFeed.from-ClassType
+                               type asa ClassType
+                           }
+            {delegate.to-Screen}
+        }
+  }
+
+  {factory implicit {from-qname
+                        qname:String,
+                        manifest:ComponentManifest = {get-current-manifest}
+                    }:LazyScreenFeed
+    def index = {qname.find
+                    '.',
+                    search-direction = SearchDirection.backward,
+                    starting-index = qname.size - 1
+                }
+    {if index == -1 then
+        {error {message ScreenFeed: invalid qname '{value qname}'.}}
+    }
+    def package-name = {qname.substr 0, index}
+    def name = {qname.tail index + 1}
+    {return
+        {LazyScreenFeed.dynamic-lookup
+            {make-package-selector package-name},
+            name,
+            manifest = manifest
+        }
+    }
+  }
+
+  {method public {to-Screen}:BaseScreen
+    {if self.screen == null then
+        set self.screen = {self.factory}
+    }
+    {return {non-null self.screen}}
+  }
+
+}

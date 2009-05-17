@@ -1,0 +1,325 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        コンテナ ({docref Array-of}、{docref HashTable-of}, {docref Set-of}、
+        {docref String}、列挙型など) から新しい配列
+        ({ctext {Array-of {metavar type}}} オブジェクト) を生成します。
+        生成される配列の要素型 {metavar type} はコンパイル時に決定されます。
+    }
+    {details
+        {ctext collect} は単純形式と通常形式の2種類の構文を提供します。
+
+        {itemize
+            {item {bold 単純形式}。
+                単純形式は元となるコンテナの要素を全て含む配列を生成します。
+                
+                単純形式の例:
+
+                {curl-code
+                    def words = {{Set-of String} "apple", "orange", "banana"}
+                    def array-words = {collect words}
+                }
+
+                この例で、{ctext array-words} は {ctext words} の要素を全て含んだ
+                {ctext {Array-of String}} になります。
+                
+                以下は単純形式を利用したその他の例です。
+
+                {curl-code
+                    || 'String' から '{Array-of char}' を生成する
+                    def chars = {collect "Curl"}
+                }
+
+                {curl-code
+                    || 列挙型の要素を全て含んだ配列を生成する
+                    {define-enum Hoge
+                        foo, bar, baz
+                    }
+                    {def arr = {collect Hoge}} || '{Array-of Hoge}' が生成される
+                }
+            }
+            {item {bold 通常形式}。
+                通常形式を使用すると、元となるコンテナの要素に任意の式や演算を適用した結果からなる配列を生成できます。
+                通常形式の構文は {docref for} のコンテナループ構文に似ています。
+
+                通常形式の例:
+
+                {curl-code
+                    def numbers = {{Array-of int} 0, 5, 10, 15}
+                    def results = {collect n in numbers do
+                                      n * 1.5
+                                  }
+                }
+
+                この例で、{ctext results} は {ctext numbers} の各要素を 1.5 倍した要素からなる
+                {ctext {Array-of double}} になります。
+                {ctext do} キーワードに続くコードブロック内には任意の式を含めることができます。
+                ここで、コードブロック内で最後の式の値が生成される配列の要素となり、
+                最後の式のコンパイル時型が {docref Array-of} の要素型となる点に注意してください。
+
+                {ctext key} キーワードを使用してキーをループすることができます。
+
+                {curl-code
+                    def hash = {{HashTable-of int, String}
+                                   0, "zero",
+                                   1, "one",
+                                   2, "two"
+                               }
+                    || "0:zero", "1:one", "2:two" からなる '{Array-of String}' を生成する
+                    def array = {collect e key i in hash do
+                                    {format "%d:%s", i, e}
+                                }
+                }
+
+                {docref for} ループと同様に、{docref break} や {docref continue} を使用できます。
+                これらを使用して中断されたループに対応する値は生成される配列の要素に追加されません。
+                (この場合に限り、生成される配列のサイズは元となるコンテナのサイズより小さくなります。)
+
+                以下の例は、{docref continue} を使用して結果の配列に含める要素を選別しています。
+
+                {curl-code
+                    def numbers = {{Array-of int} 0, 1, 2, 3, 4, 5}
+                    def results = {collect n in numbers do
+                                      || 偶数は含めない
+                                      {if (n mod 2) == 0 then
+                                          {continue}
+                                      }
+                                      n
+                                  }
+                }
+            }
+        }
+    }
+}
+{define-syntax public {collect ?rest:tokens}
+    def ret =
+        {syntax-switch
+            rest,
+            must-match? = true
+         case {pattern ?container:expression} do
+            {generate-simple-collect-source syntax-env, container}
+         case
+            {pattern
+                ?val:expression
+                ?maybe-key:{optional key ?:expression}
+                in ?container:expression do
+                ?body:statements
+            }
+         do
+            {syntax-switch
+                maybe-key,
+                must-match? = true
+             case {pattern} do
+                {generate-collect-source syntax-env, val, null, container, body}
+             case {pattern key ?key:expression} do
+                {generate-collect-source syntax-env, val, key, container, body}
+            }
+        }
+    {return ret}
+}
+
+{define-proc {generate-simple-collect-source
+                 syntax-env:SyntaxEnv,
+                 container:Parsed
+             }:CurlSource
+    def val-type =
+        {infer-container-value-type syntax-env, container}
+    {return
+        {expand-template
+            {new {Array-of ?val-type}, {splice ?container}}
+        }
+    }
+}
+
+{define-proc {generate-collect-source
+                 syntax-env:SyntaxEnv,
+                 val:Parsed,
+                 key:#Parsed,
+                 container:Parsed,
+                 body:CurlSource
+             }:CurlSource
+    || variable declarations
+    def var-decls = {{Array-of CurlSource}}
+
+    || parse loop variable
+    def val-var = {Identifier.unique prefix = "val-var"}
+    let val-type:#Parsed = null
+    {type-switch val
+     case id:Identifier do
+        {var-decls.append
+            {expand-template
+                let ?id:{compile-time-type-of ?val-var} = ?val-var
+            }
+        }
+     case sb:SingleBinding do
+        {if sb.value != null then
+            {parse-collect-error val}
+        }
+        {var-decls.append
+            {expand-template
+                let ?sb = ?val-var
+            }
+        }
+        set val-type = sb.type
+     else
+        {parse-collect-error val}
+    }
+
+    || parse loop key variable
+    def key-var = {Identifier.unique prefix = "key-var"}
+    let key-type:#Parsed = null
+    let maybe-key:CurlSource = {EmptySource}
+    {if-non-null key then
+        {type-switch key
+         case id:Identifier do
+            {var-decls.append
+                {expand-template
+                    let ?id:{compile-time-type-of ?key-var} = ?key-var
+                }
+            }
+         case sb:SingleBinding do
+            {if sb.value != null then
+                {parse-collect-error key}
+            }
+            {var-decls.append
+                {expand-template
+                    let ?sb = ?key-var
+                }
+            }
+            set key-type = sb.type
+         else
+            {parse-collect-error key}
+        }
+        set maybe-key = {expand-template key ?key-var}
+    }
+
+    || infer collecting value type
+    def collecting-type =
+        {value
+            def temp-decls = {{Array-of CurlSource}}
+            {if val-type == null then
+                set val-type =
+                    {infer-container-value-type syntax-env, container}
+            }
+            {temp-decls.append
+                {expand-template
+                    let ?val-var:?val-type = {unreachable}
+                }
+            }
+            {if-non-null key then
+                {if key-type == null then
+                    set key-type =
+                        {infer-container-key-type syntax-env, container}
+                }
+                {temp-decls.append
+                    {expand-template
+                        let ?key-var:?key-type = {unreachable}
+                    }
+                }
+            }
+            {syntax-env.type-of
+                {expand-template
+                    {value ?temp-decls ?var-decls ?body}
+                }
+            }
+        }
+
+    || result
+    {return
+        {expand-template
+            {value
+                def val = {new {Array-of ?{Literal collecting-type}}}
+                {for ?val-var ?maybe-key in ?container do
+                    ?var-decls
+                    {val.append {value ?body}}
+                }
+                val
+            }
+        }
+    }
+}
+
+{define-proc {infer-container-value-type
+                 syntax-env:SyntaxEnv,
+                 container:Parsed
+             }:Parsed
+    def enum? = {{syntax-env.type-of container}.subtype-of? EnumType}
+    {if enum? then
+        {return container}
+    }
+    def type =
+        {try
+            {syntax-env.type-of
+                {expand-template {?container.get 0}}
+            }
+         catch ex:Exception do
+            {syntax-env.type-of
+                {expand-template {{?container.to-Iterator}.read-one}}
+            }
+        }
+    {return {Literal type}}
+}
+
+{define-proc {infer-container-key-type
+                 syntax-env:SyntaxEnv,
+                 container:Parsed
+             }:Parsed
+    def enum? = {{syntax-env.type-of container}.subtype-of? EnumType}
+    {if enum? then
+        {return {Literal int}}
+    }
+    def type =
+        {try
+            {syntax-env.type-of
+                {expand-template ?container.for-loop-count}
+            }
+         catch ex:Exception do
+            {syntax-env.type-of
+                {expand-template
+                    {{?container.keys-to-Iterator}.read-one}
+                }
+            }
+        }
+    {return {Literal type}}
+}
+
+{define-proc {parse-collect-error
+                 src:CurlSource
+             }:never-returns
+    {src.parse-error
+        "collect: unknown expression '%s'.", {src.get-text}
+    }
+}
+
+{define-proc {ensure-valid-var-decl expr:Parsed}:void
+    {type-switch expr
+     case id:Identifier do
+     case sb:SingleBinding do
+        {if sb.value != null then
+            {expr.parse-error
+                "コンテナ繰り返し処理変数に初期値を指定できません。"
+            }
+        }
+     else
+        {expr.parse-error "繰り返し処理変数がありません。"}
+    }
+}

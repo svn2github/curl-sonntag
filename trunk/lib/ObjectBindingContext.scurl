@@ -1,0 +1,62 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+|| TODO: support collections, RecordSet and ...
+||       support one way / two way update
+{doc-next {unadvertised}}
+{define-class public ObjectBindingContext {inherits DataBindingContext}
+  def public selector-delimiter = '.'
+  field private _source:Object
+  {getter public {source}:Object
+    {return self._source}
+  }
+  {setter public {source val:Object}:void
+    {if self._source != val then
+        set self._source = val
+        {self.refresh}
+    }
+  }
+  {constructor public implicit {default source:Object}
+    set self._source = source
+  }
+  {method public {get-data data-selector:any}:(data:any, exists?:bool)
+    {if-non-null value = {self.get-property data-selector} then
+        {return value, true}
+    }
+    {return null, false}
+  }
+  {method private {get-property selector:any}:any
+    {type-switch selector
+     case str:String do
+        def props = {str.split
+                        split-chars = {this-class}.selector-delimiter
+                    }
+        let val:any = self.source
+        {try
+            {for prop in props do
+                set val = {get-public-property val, prop}
+            }
+            {return val}
+         catch ex:Error do
+        }
+    }
+    {return null}
+  }
+}

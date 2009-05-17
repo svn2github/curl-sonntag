@@ -1,0 +1,156 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose {pop スクリーンコマンド} を定義します。}
+    {syntax
+        {ctext
+            {define-screen-command{escape {br}}
+                \ \ \ \ {metavar name}{escape {br}}
+                \ \ \ \ of [{metavar screen-var}:]{metavar screen-type}{escape {br}}
+                \ \ \ \ [{enabled? {metavar enabled?-body}}]{escape {br}}
+             do{escape {br}}
+                \ \ \ \ {metavar body} {escape {br}}
+            }
+        }
+
+        このマクロは {ctext {{docref ScreenCommand-of} {metavar screen-type}}}
+        を継承したクラスを定義して、{docref ScreenCommandContext.registry}
+        に登録します。
+
+        {metavar body} はこのスクリーンコマンドの実行時に実行されるステートメントです。
+        {metavar screen-var} を指定した場合は、{metavar body} 内で
+        {pop スクリーン} を参照する変数として使用できます。
+
+        {ctext {enabled? ...}} を記述すると、その最後のステートメントが {docref bool}
+        に評価されて、このスクリーンコマンドの {docref-abbr ScreenCommand-of.enabled?}
+        の値として使用されます。
+    }
+    {details
+        このマクロは通常 {docref bind-screen-command} と組み合わせて使用します。
+        例えば、
+        {curl-code
+            {define-screen-command my-command of screen:MyScreen do
+                || "my-command" の処理
+            }
+        }
+        のようなスクリーンコマンドの定義がある場合、{pop スクリーングラフィック}
+        上からは以下のように {ctext "my-command"} を指定します。
+        {curl-code
+            {CommandButton
+                {bind-screen-command "my-command"}
+            }
+        }
+    }
+}
+{define-macro public
+    {define-screen-command
+        ?name:identifier
+        of ?screen-spec:expression
+        ?enabled:{optional {enabled? ?:statements}}
+     do
+        ?execute-body:verbatim
+    }
+
+    || Screen class
+    let screen-type:#CurlSource = null
+    let screen-var-decl:#CurlSource = null
+    {syntax-switch
+        screen-spec,
+        must-match? = true
+     case {pattern ?type:identifier} do
+        set screen-type = type
+     case {pattern ?expr:expression} do
+        let valid?:bool = false
+        {type-switch expr
+         case sb:SingleBinding do
+            {if sb.value == null and sb.type != null then
+                set screen-type = {non-null sb.type}
+                set screen-var-decl =
+                    {expand-template
+                        let ?sb = self.screen
+                    }
+                set valid? = true
+            }
+        }
+        {if not valid? then
+            {expr.parse-error
+                "Unexpected expression '%s'",
+                {expr.get-text}
+            }
+        }
+    }
+
+    || Command class
+    def command-name = {Literal name.name}
+    def command-class =
+        {Identifier
+            {screen-type.get-text} & '_' & command-name.value
+        }
+
+    || default constructor
+    def constructor-src =
+        {expand-template
+            {constructor public {default screen:?screen-type}
+                {construct-super ?command-name, screen}
+            }
+        }
+
+    || enabled? getter
+    def enabled-src =
+        {syntax-switch
+            enabled,
+            must-match? = true
+         case {pattern} do
+            {EmptySource}
+         case {pattern {enabled? ?enabled-body:statements}} do
+            {expand-template
+                {getter public {enabled?}:bool
+                    ?screen-var-decl
+                    {return {value ?enabled-body} and super.enabled?}
+                }
+            }
+        }
+
+    || execute method
+    def execute-src =
+        {expand-template
+            {method public {execute}:void
+                ?screen-var-decl
+                ?execute-body
+            }
+        }
+
+    {return
+        {expand-template
+            {define-class public ?=command-class
+              {inherits {ScreenCommand-of ?screen-type}}
+              ?constructor-src
+              ?enabled-src
+              ?execute-src
+            }
+            {do
+                {ScreenCommandContext.registry.register-command
+                    ?command-name, ?screen-type, ?command-class
+                }
+            }
+        }
+    }
+}

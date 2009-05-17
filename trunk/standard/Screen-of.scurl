@@ -1,0 +1,274 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        独立した {pop スクリーングラフィック} クラスを持つ {pop スクリーン}
+        のスーパークラス。
+
+        {docref VScreen-of} も参照してください。
+    }
+    {parameter tGraphic,
+        スクリーングラフィックの {docref ClassType}。
+        {param tGraphic} は引数なしで呼び出せる {ctext public}
+        な {ctext default} コンストラクタを持つ必要があります。
+    }
+}
+{define-class public abstract {Screen-of tGraphic:Type}
+  {inherits BaseScreen, ScreenUtilsMixin}
+
+  {constructor public {default}
+    {construct-super.BaseScreen}
+    {construct-super.ScreenUtilsMixin}
+  }
+
+  || override to specialize the return type to 'tGraphic'
+  {getter public {graphic}:tGraphic
+    {return super.graphic asa tGraphic}
+  }
+
+  {method protected {create-graphic}:tGraphic
+    {return {new tGraphic}}
+  }
+
+}
+
+{doc-next
+    {purpose
+        Visual Layout Editor で作成したレイアウトを {pop スクリーングラフィック}
+        として使用する {pop スクリーン} のスーパークラス。
+
+        {docref Screen-of} も参照してください。
+    }
+    {parameter tLayout,
+        Visual Layout Editor で作成されたレイアウトクラス({pop スクリーンレイアウト})
+        の {docref ClassType}。
+        {param tLayout} は引数なしで呼び出せる {ctext public}
+        な {ctext default} コンストラクタを持つ必要があります。
+    }
+}
+|| VLEで作成したレイアウトクラスをScreenGraphicとして扱う場合に'Screen-of'の代わりに使用する
+|| FIXME: the name 'VScreen-of' is not good...
+{define-class public abstract {VScreen-of tLayout:Type}
+  {inherits BaseScreen, ScreenUtilsMixin}
+
+  field private _layout:#tLayout
+
+  {constructor public {default}
+    {construct-super.BaseScreen}
+    {construct-super.ScreenUtilsMixin}
+  }
+
+  {doc-next
+    {purpose この {pop スクリーン} の {pop スクリーンレイアウト}。}
+  }
+  {getter public {layout}:tLayout
+    || call 'graphic' getter to ensure the layout is generated
+    def g = self.graphic
+    {return {non-null self._layout}}
+  }
+
+  {method protected {create-graphic}:Graphic
+    {if self._layout == null then
+        set self._layout = {self.create-layout}
+    }
+    {return self._layout.container}
+  }
+
+  {doc-next
+    {purpose {pop スクリーンレイアウト} を作成します。}
+  }
+  {method protected {create-layout}:tLayout
+    {return {new tLayout}}
+  }
+
+}
+
+{doc-next
+    {purpose
+        単一のクラスで {pop スクリーン} と {pop スクリーングラフィック}
+        を定義するためのスーパークラス。
+    }
+    {details
+        サブクラスでは {docref-abbr SimpleScreen.add-internal}
+        を使用して、適切なスクリーングラフィックを {ctext self}
+        に設定してください。
+    }
+}
+{define-class public abstract SimpleScreen {inherits BaseScreen, BaseFrame}
+
+  {constructor public {default ...}
+    set self.screen = self
+    {construct-super.BaseScreen}
+    {construct-super.BaseFrame ...}
+  }
+
+  {method protected {create-graphic}:Graphic
+    {return self}
+  }
+
+}
+
+{doc-next
+    {purpose
+        {pop スクリーン} で有用なメソッドを集めた Mixin クラス。
+        このクラスは {docref BaseScreen} のサブクラスに取り込まれることを想定しています。
+    }
+}
+{define-class public abstract ScreenUtilsMixin
+
+  {doc-next
+    {purpose
+        スクリーンが表示された時、最初にアクティブになる {docref ActiveTraversor}。
+    }
+  }
+  field public first-active-control:#ActiveTraversor
+
+  field private cached-update-handlers:{HashTable-of ClassType, EventHandler}
+
+  {constructor public {default}
+    set self.cached-update-handlers = {{HashTable-of ClassType, EventHandler}}
+    {self.as-screen.graphic.add-event-handler
+        {on AttachEvent do
+            {after 0s do
+                {if-non-null at = self.first-active-control then
+                    {at.become-active}
+                }
+            }
+        }
+    }
+  }
+
+  {doc-next
+    {purpose スクリーンが配置されている {docref ScreenSlot}。}
+  }
+  {getter public {screen-slot}:#ScreenSlot
+    {return self.as-screen.graphic.screen-slot}
+  }
+
+  {doc-next
+    {purpose
+        このスクリーンの代わりに別のスクリーンをスクリーンスロットに配置します。
+    }
+    {throws
+        {docref-abbr ScreenUtilsMixin.screen-slot} が {ctext null}
+        の場合はエラーがスローされます。
+    }
+  }
+  {method public {replace-with screen:ScreenFeed}:void
+    {if-non-null slot = self.screen-slot then
+        {display-screen slot, screen}
+     else
+        {error {lmessage parent slot not found.}}
+    }
+  }
+
+  {doc-next {unadvertised}}
+  {getter public {object-binding-context}:#ObjectBindingContext
+    {type-switch self.as-screen.graphic.data-binding-context
+     case context:ObjectBindingContext do
+        {return context}
+    }
+    {return null}
+  }
+  {setter public {object-binding-context context:#ObjectBindingContext}:void
+    set self.as-screen.graphic.data-binding-context = context
+  }
+
+  {doc-next
+    {purpose スクリーンコマンドを更新するためのイベントハンドラを組み込みます。}
+    {parameter event-type,
+        更新ハンドラを起動するイベントのタイプ。
+    }
+    {parameter ...,
+        更新ハンドラを組み込む {docref EventTarget}。
+    }
+    {details
+        更新ハンドラは {docref ScreenCommandContext.request-update-commands}
+        を呼び出します。このハンドラを削除する場合は、
+        {docref-abbr ScreenUtilsMixin.uninstall-update-handler}
+        を使用してください。
+    }
+  }
+  {method public {install-update-handler
+                     event-type:ClassType = ValueChanged,
+                     ...:EventTarget
+                 }:void
+    def handler = {self.get-update-handler event-type}
+    {for t in ... do
+        {t.add-event-handler handler}
+    }
+  }
+
+  {doc-next
+    {purpose
+        {docref-abbr ScreenUtilsMixin.install-update-handler}
+        によって組み込まれたイベントハンドラを削除します。
+    }
+    {parameter event-type,
+        削除するイベントハンドラのイベントタイプ。
+        {ctext null} (既定) の場合は {docref-abbr ScreenUtilsMixin.install-update-handler}
+        によって組み込まれた全ての更新ハンドラを削除します。
+    }
+  }
+  {method public {uninstall-update-handler
+                     event-type:#ClassType = null,
+                     ...:EventTarget
+                 }:void
+    {if-non-null event-type then
+        def (handler, found?) =
+            {self.cached-update-handlers.get-if-exists event-type}
+        {if not found? then {return}}
+        {for t in ... do
+            {if {t.event-handler-present? handler} then
+                {t.remove-event-handler handler}
+            }
+        }
+     else
+        {for t in ... do
+            {for handler in self.cached-update-handlers do
+                {if {t.event-handler-present? handler} then
+                    {t.remove-event-handler handler}
+                }
+            }
+        }
+    }
+  }
+
+  ||| private methods
+
+  {getter private {as-screen}:BaseScreen
+    {return self asa BaseScreen}
+  }
+
+  {method private {get-update-handler event-type:ClassType}:EventHandler
+    def (handler, found?) =
+        {self.cached-update-handlers.get-if-exists event-type}
+    {if found? then
+        {return handler}
+    }
+    def new-handler = {on event-type do
+                          {self.as-screen.request-update-commands}
+                      }
+    set self.cached-update-handlers[event-type] = new-handler
+    {return new-handler}
+  }
+
+}

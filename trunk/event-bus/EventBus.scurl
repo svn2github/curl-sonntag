@@ -1,0 +1,222 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose {docref EventBus} オブジェクトを返します。}
+}
+{define-proc public inline {get-event-bus}:EventBus
+    {return {EventBus.get-instance}}
+}
+
+{doc-next
+    {purpose イベントバス。}
+    {details
+        {pop イベントバス} は {docref BroadcastEvent} を全ての
+        {docref BroadcastEventTarget} にブロードキャストします。
+        {ctext EventBus} のオブジェクトを取得するには {docref get-event-bus}
+        を使用します。
+    }
+}
+{define-class public final EventBus
+
+  field private constant registry:BroadcastEventTargetRegistry
+  field private constant queue:BroadcastEventQueue
+
+  || This class is singleton.
+  || Use 'get-event-bus' to get this object.
+  {constructor private {default}
+    set self.registry = {BroadcastEventTargetRegistry}
+    set self.queue = {self.create-queue}
+  }
+
+  {doc-next
+    {purpose {docref BroadcastEventTarget} をこの {ctext EventBus} に登録します。}
+    {parameter target,
+        登録する {docref BroadcastEventTarget}。
+    }
+    {parameter weak?,
+        {ctext true} (既定)の場合、{param target} をウィークポインタで登録します。
+    }
+    {return-vals
+        {param target} が登録された場合に {ctext true} を返します。
+        {param target} が既に登録済みの場合は {ctext false} を返します。
+    }
+  }
+  {method public {register-target
+                     target:BroadcastEventTarget,
+                     weak?:bool = true
+                 }:bool
+    {return {self.registry.append-target target, weak? = weak?}}
+  }
+
+  {doc-next
+    {purpose {docref BroadcastEventTarget} の登録を解除します。}
+    {parameter target, 登録を解除する {docref BroadcastEventTarget}。}
+    {return-vals
+        {param target} の登録が解除された場合に {ctext true}
+        を返します。{param target} がこの {ctext EventBus}
+        に登録されていなかった場合は {ctext false} を返します。
+    }
+  }
+  {method public {unregister-target target:BroadcastEventTarget}:bool
+    {return {self.registry.remove-target target}}
+  }
+
+  {doc-next
+    {purpose イベントを送信します。}
+    {parameter event, 送信する {docref BroadcastEvent}。}
+    {parameter target,
+        イベントの送信先。{ctext null} (既定)の場合は、この {ctext EventBus}
+        に登録されている全ての {docref BroadcastEventTarget}
+        に {param event} を送信します。
+    }
+    {parameter position,
+        {param event} を挿入するイベントキューの位置。
+    }
+  }
+  {method public {send-event
+                     event:BroadcastEvent,
+                     target:#BroadcastEventTarget = null,
+                     position:EventQueuePosition = EventQueuePosition.tail
+                 }:void
+    {self.queue.enqueue-event
+        {DispatchBroadcast event, target},
+        position = position
+    }
+  }
+
+  {doc-next
+    {purpose イベントを同期的に送信します。}
+    {parameter event, 送信する {docref BroadcastEvent}。}
+    {parameter target,
+        イベントの送信先。{ctext null} (既定)の場合は、この {ctext EventBus}
+        に登録されている全ての {docref BroadcastEventTarget}
+        に {param event} を送信します。
+    }
+  }
+  {method public {send-event-sync
+                     event:BroadcastEvent,
+                     target:#BroadcastEventTarget = null
+                 }:void
+    {self.queue.handle-event
+        {DispatchBroadcast event, target}
+    }
+  }
+
+  {method protected {fire-event e:BroadcastEvent}:void
+    def targets = self.registry.targets
+    {targets.sweep}
+    {for target in targets do
+        {assert target != null}
+        {if not target.stop-receiving? then
+            {target.handle-event e}
+        }
+    }
+  }
+
+  {method protected {fire-event-to-target
+                        e:BroadcastEvent,
+                        target:BroadcastEventTarget
+                    }:void
+    {if {self.registry.targets.find target} != -1 then
+        {if not target.stop-receiving? then
+            {target.handle-event e}
+        }
+    }
+  }
+
+  {doc-next
+    {purpose イベントキューを作成します。}
+  }
+  {method protected {create-queue}:BroadcastEventQueue
+    {return
+        {BroadcastEventQueue
+            {on e:DispatchBroadcast do
+                {if-non-null target = e.target then
+                    {self.fire-event-to-target e.event, target}
+                 else
+                    {self.fire-event e.event}
+                }
+            }
+        }
+    }
+  }
+
+  ||| singleton impl
+  let private instance:#EventBus
+  {factory package {get-instance}:EventBus
+    {if-non-null instance = {this-class}.instance then
+        {return instance}
+    }
+    def new-instance = {EventBus}
+    set {this-class}.instance = new-instance
+    {return new-instance}
+  }
+
+}
+
+{define-class final BroadcastEventTargetRegistry
+  field constant targets:{WeaklyArray-of BroadcastEventTarget}
+  field constant permanents:{Set-of BroadcastEventTarget}
+  {constructor {default}
+    set self.targets = {new {WeaklyArray-of BroadcastEventTarget}}
+    set self.permanents = {new {Set-of BroadcastEventTarget}}
+  }
+  {method {append-target
+              target:BroadcastEventTarget,
+              weak?:bool = true
+          }:bool
+    {if not weak? then
+        {self.permanents.insert target}
+    }
+    {if {self.targets.find target} == -1 then
+        {self.targets.append target}
+        {return true}
+    }
+    {return false}
+  }
+  {method {remove-target target:BroadcastEventTarget}:bool
+    {self.permanents.remove target, error-if-missing? = false}
+    def index = {self.targets.find target}
+    {if index != -1 then
+        {self.targets.remove index}
+        {return true}
+    }
+    {return false}
+  }
+}
+
+{define-class public DispatchBroadcast {inherits Event}
+  field public event:BroadcastEvent
+  field public target:#BroadcastEventTarget
+  {constructor public {default
+                          event:BroadcastEvent,
+                          target:#BroadcastEventTarget
+                      }
+    set self.event = event
+    set self.target = target
+  }
+}
+
+{define-class public BroadcastEventQueue {inherits EventTarget}
+  {constructor public {default ...:EventHandler}
+    {construct-super ...}
+  }
+}

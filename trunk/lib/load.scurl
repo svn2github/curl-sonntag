@@ -1,0 +1,47 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+{curl 6.0 package}
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc
+    type = package, COM.CURLAP.SONNTAG.LIB
+    {purpose
+    }
+}
+
+{package COM.CURLAP.SONNTAG.LIB,
+    {compiler-directives careful? = true}
+}
+
+{import * from CURL.GUI.STANDARD}
+{import * from CURL.LANGUAGE.SOURCE}
+{import * from CURL.UTIL.POINTER-TO}
+
+{include
+||--    "array.scurl",
+||--    "collect.scurl",
+||--    "if-local-applet.scurl",
+    "import-all-packages.scurl",
+    "get-current-manifest.scurl",
+||--    "only-if.scurl",
+||--    "visit-super-classes.scurl",
+    "walk-graphics.scurl",
+    "ObjectBindingContext.scurl",
+    "WeaklyArray-of.scurl"
+||--    "misc.scurl"
+}

@@ -1,0 +1,156 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        {pop イベントバス} を通してブロードキャストされるイベント。
+    }
+}
+{define-class public BroadcastEvent {inherits Event}
+
+  {doc-next
+    {purpose
+        この {ctext BroadcastEvent} を送信した
+        {docref BroadcastEventTarget}。
+    }
+  }
+  field public sender:#BroadcastEventTarget
+
+  {constructor public {default
+                          sender:#BroadcastEventTarget = null
+                      }
+    set self.sender = sender
+  }
+
+}
+
+{doc-next
+    {purpose
+        {pop イベントバス} に接続されて {docref BroadcastEvent}
+        を送受信することのできるクラス。
+    }
+}
+{define-class public shared BroadcastEventTarget {inherits EventTarget}
+
+  {doc-next
+    {purpose
+        {ctext true} の場合 {docref BroadcastEvent} を受信しません。
+    }
+  }
+  field public stop-receiving?:bool = false
+
+  field protected-get constant bus:EventBus
+
+  {doc-next
+    {purpose このオブジェクトを生成します。}
+    {parameter ..., イベントハンドラ。}
+    {details
+        このオブジェクトはインスタンス生成時に {docref get-event-bus}
+        によって取得される {docref EventBus} を
+        {docref-abbr BroadcastEventTarget.subscribe} します。
+    }
+  }
+  {constructor public {default ...:EventHandler}
+    set self.bus = {get-event-bus}
+    {construct-super ...}
+    {self.subscribe}
+  }
+
+  {secondary-constructor public {default ...:EventHandler}
+    {self._add-event-handlers ...}
+  }
+
+  {doc-next
+    {purpose {pop イベントバス} に接続します。}
+  }
+  {method public {subscribe weak?:bool = true}:bool
+    {return {self.bus.register-target self, weak? = weak?}}
+  }
+
+  {doc-next
+    {purpose {pop イベントバス} の接続を解除します。}
+  }
+  {method public {unsubscribe}:bool
+    {return {self.bus.unregister-target self}}
+  }
+
+  {doc-next
+    {purpose {pop イベントバス} にイベントを送信します。}
+    {parameter event,
+        送信する {docref BroadcastEvent}。
+    }
+    {parameter target,
+        送信先の {docref BroadcastEventTarget}。{param target} が
+        {pop イベントバス} に接続されていない場合はイベントは送信されません。
+        {ctext null} (既定値)の場合は {pop イベントバス}
+        に接続された全ての {docref BroadcastEventTarget} に送信されます。
+    }
+    {parameter position,
+        メッセージバスのイベントキューの位置。
+    }
+  }
+  {method public {send-event
+                     event:BroadcastEvent,
+                     target:#BroadcastEventTarget = null,
+                     position:EventQueuePosition = EventQueuePosition.tail
+                 }:void
+    set event.sender = self
+    {self.bus.send-event event, target = target, position = position}
+  }
+
+  {doc-next
+    {purpose {pop イベントバス} にイベントを送信して処理の完了を待ちます。}
+    {parameter event,
+        送信する {docref BroadcastEvent}。
+    }
+    {parameter target,
+        送信先の {docref BroadcastEventTarget}。{param target} が
+        {pop イベントバス} に接続されていない場合はイベントは送信されません。
+        {ctext null} (既定値)の場合は {pop イベントバス}
+        に接続された全ての {docref BroadcastEventTarget} に送信されます。
+    }
+    {details
+        このメソッドは {docref-abbr BroadcastEventTarget.send-event}　と異なり、
+        {param event} に対する全てのイベントハンドラが実行されてから復帰します。
+    }
+  }
+  {method public {send-event-sync
+                     event:BroadcastEvent,
+                     target:#BroadcastEventTarget = null
+                 }:void
+    set event.sender = self
+    {self.bus.send-event-sync event, target = target}
+  }
+
+  || prefix '_' to avoid a naming conflict with 'EventTarget.add-event-handlers'
+  {method private {_add-event-handlers ...:EventHandler}:void
+    def size = {count-arguments ...}
+    {if size > 0 then
+        {if self.event-handlers == null then
+            set self.event-handlers =
+                {new {Array-of EventHandler}, efficient-size = size}
+        }
+        {for arg in ... do
+            {self.add-event-handler arg}
+        }
+    }
+  }
+
+}

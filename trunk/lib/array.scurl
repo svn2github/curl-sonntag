@@ -1,0 +1,113 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {signature
+        {ctext {array {metavar ...}}}
+    }
+    {purpose
+        引数から型パラメータを推測して適切な {ctext {{docref Array-of} {metavar type}}}
+        オブジェクトを返します。
+
+        例えば、
+
+        {curl-code
+            {{Array-of int} 1, 2, 3}
+        }
+
+        という配列は、{ctext array} マクロを使用して以下のように記述できます。
+
+        {curl-code
+            {array 1, 2, 3}
+        }
+
+        コンパイル時型の異なる引数が与えられた場合も、なるべく具体的な型の配列の生成を試みます。
+
+        例えば、以下のコードは
+        {ctext {{docref Array-of} {{docref MultiUIValueControlFrame-of} {docref String}}}}
+        オブジェクトを返します。
+
+        {curl-code
+            {array {TextField}, {PasswordField}, {ComboBox}}
+        }
+    }
+}
+{define-syntax public {array
+                          ?args:{bounded-comma-sequence
+                                    1, infinity, ?:expression
+                                }
+                      }
+    def t = {infer-common-type-hack syntax-env, args}
+    {return
+        {expand-template
+            {new {Array-of ?{Literal t}}, ?args}
+        }
+    }
+}
+
+{doc-next
+    {purpose
+        {docref array} の {docref FastArray-of} バージョン。
+    }
+}
+{define-syntax public {fast-array
+                          ?args:{bounded-comma-sequence
+                                    1, infinity, ?:expression
+                                }
+                      }
+    def t = {infer-common-type-hack syntax-env, args}
+    {return
+        {expand-template
+            {new {FastArray-of ?{Literal t}}, ?args}
+        }
+    }
+}
+
+{define-proc {infer-common-type-hack
+                 syntax-env:SyntaxEnv,
+                 exprs:SourceSequence
+             }:Type
+    {if exprs.size == 1 then
+        {return {syntax-env.type-of exprs[0]}}
+    }
+    || use 'if' expression to infer common compile type
+    def if-contents = {{Array-of CurlSource}}
+    def end-index = exprs.size - 1
+    {for expr key i in exprs do
+        {if-contents.append
+            {CurlSource.from-string
+                {switch i
+                 case 0 do
+                    "if true then"
+                 case end-index do
+                    "else"
+                 else
+                    "elseif true then"
+                }
+            }
+        }
+        {if-contents.append expr}
+    }
+    {return
+        {syntax-env.type-of
+            {expand-template {?if-contents}}
+        }
+    }
+}

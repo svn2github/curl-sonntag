@@ -1,0 +1,105 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        条件付きで追加される引数を表現します。
+        主に、残余引数を受け取る関数呼出しにおいて使用します。
+    }
+    {signature
+        {ctext {only-if {metavar condition} then {metavar body}}}
+    }
+    {details
+        {ctext only-if} は関数呼出しの引数リストのコンテキストにおいてのみ使用できます。
+        {metavar condition} が {ctext true} と評価される場合に、{metavar body}
+        の生成する値を引数に追加します。
+        {metavar condition} が {ctext false} の場合は、引数に何も追加しません。
+
+        以下の例は、実行時の条件によって {docref VBox} に含めたり含めなかったりする
+        オブジェクトがある場合の典型的なコードです。
+
+        {curl-code
+            def vb = {VBox
+                         {CommandButton label = "button-1"},
+                         {CommandButton label = "button-3"}
+                     }
+            || "button-2" は特権アプレットの場合のみ表示する
+            {if {process-privileged?} then
+                {vb.add index = 1, {CommandButton label = "button-2"}}
+            }
+        }
+
+        このようなコードは、{ctext only-if} を用いて以下のように記述できます。
+
+        {curl-code
+            {VBox
+                {CommandButton label = "button-1"},
+                {only-if {process-privileged?} then
+                    {CommandButton label = "button-2"}
+                },
+                {CommandButton label = "button-3"}
+            }
+        }
+    }
+}
+{define-macro public {only-if
+                         ?cond:expression
+                         then
+                         ?body:statements
+                     }
+    {return
+        {expand-template
+            {splice
+                {if ?cond then
+                    {Arguments {value ?body}}
+                 else
+                    _empty-array
+                }
+            }
+        }
+    }
+}
+
+{doc-next
+    {purpose
+        {docref only-if} の {docref if-non-null} バージョン。
+    }
+}
+{define-macro public {only-if-non-null
+                         ?params:{bounded-comma-sequence 1, infinity, ?:expression}
+                         then
+                         ?body:statements
+                     }
+    {return
+        {expand-template
+            {splice
+                {if-non-null ?params then
+                    {Arguments {value ?body}}
+                 else
+                    _empty-array
+                }
+            }
+        }
+    }
+}
+
+
+|| used in 'only-if'
+{def _empty-array = {new {ReadOnlyArray-of any}}}

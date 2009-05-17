@@ -1,0 +1,174 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        {docref CommandButton} (またはその他の {docref CommandBinding})
+        に {pop スクリーンコマンド} をバインドするためのイベントハンドラを作成します。
+    }
+    {syntax
+        {ctext
+            {bind-screen-command {metavar command-name}:String [on {metavar event-type}]}
+        }
+    }
+    {details
+        以下のように使用します。
+        {curl-code
+            {CommandButton
+                label = "OK",
+                {bind-screen-command "do-something"}
+            }
+        }
+        この例では、{docref CommandButton} に {ctext "do-something"}
+        という名前の {pop スクリーンコマンド} をバインドします。
+
+        このマクロは {docref AttachEvent} のイベントハンドラを作成して、
+        {docref CommandBinding.bound-command} に {pop スクリーンコマンド}
+        をセットします。
+    }
+}
+{define-macro public {bind-screen-command
+                         ?name:expression
+                         ?on-event:{optional on ?:expression}
+                     }
+    def name-var = {Identifier.unique prefix = "name"}
+    def event-handler =
+        {syntax-switch
+            on-event,
+            must-match? = true
+         case {pattern} do
+            {expand-template
+                {on AttachEvent at v:Visual do
+                    set (v asa CommandBinding).bound-command =
+                        {if-non-null screen = v.screen then
+                            {screen.get-command ?name-var}
+                         else
+                            null
+                        }
+                }
+            }
+         case {pattern on ?T:expression} do
+            {expand-template
+                {on ?T at v:Visual do
+                    {if-non-null screen = v.screen then
+                        {screen.do-command
+                            ?name-var,
+                            throw-exception-on-failure? = false
+                        }
+                    }
+                }
+            }
+        }
+    {return
+        {expand-template
+            {value
+                def ?name-var:String = ?name
+                ?event-handler
+            }
+        }
+    }
+}
+
+{doc-next
+    {purpose
+        {docref CommandButton} (またはその他の {docref CommandBinding})
+        に {pop スクリーン} のメソッドをバインドするためのイベントハンドラを作成します。
+    }
+    {syntax
+        {ctext
+            {bind-screen-method {metavar method-name}:String [on {metavar event-type}]}
+        }
+    }
+}
+{define-macro public {bind-screen-method
+                         ?name:expression
+                         ?on-event:{optional on ?:expression}
+                     }
+    {return
+        {syntax-switch
+            on-event,
+            must-match? = true
+         case {pattern} do
+            {expand-template
+                {value
+                    def method-name:String = ?name
+                    {on AttachEvent at v:Visual do
+                        set (v asa CommandBinding).bound-command =
+                            {if-non-null screen = v.screen then
+                                {MethodInvokeCommand
+                                    method-name, screen, method-name
+                                }
+                             else
+                                null
+                            }
+                    }
+                }
+            }
+         case {pattern on ?T:expression} do
+            {expand-template
+                {value
+                    def method-name:String = ?name
+                    let cmd:#CommandImpl
+                    {on ?T at v:Visual do
+                        {if cmd == null then
+                            {if-non-null screen = v.screen then
+                                set cmd = {MethodInvokeCommand
+                                              method-name, screen, method-name
+                                          }
+                            }
+                        }
+                        {if-non-null cmd then
+                            {cmd.do-command}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+{define-class public MethodInvokeCommand {inherits CommandImpl}
+  field public-get constant obj:Object
+  field protected-get constant method:Method
+  {constructor public {default
+                          name:String,
+                          obj:Object,
+                          method-name:String
+                      }
+    set self.obj = obj
+    set self.method = {self.get-method method-name}
+    {construct-super name}
+  }
+  {method public {execute}:void
+    {self.method.invoke self.obj}
+  }
+  {method private {get-method name:String}:Method
+    def class = {type-of self.obj} asa ClassType
+    def method = {class.get-method name}
+    {if-non-null method then
+        def proc-t = method.type asa ProcType
+        {if proc-t.num-args > 0 then
+            {error {lmessage cannot specify a method that requires positional arguments.}}
+        }
+        {return method}
+    }
+    {error {lmessage method '{value name}' not found in '{value class}'.}}
+  }
+}

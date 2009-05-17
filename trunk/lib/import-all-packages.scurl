@@ -1,0 +1,87 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose マニフェストに含まれる全てのパッケージを {docref import} します。}
+    {syntax
+        {ctext
+            {import-all-packages [look-in-delegates?:bool = true]}
+        }
+    }
+    {parameter look-in-delegates?,
+        デリゲートマニフェストのパッケージも含める場合は {ctext true}
+        (既定) を指定します。
+    }
+    {details
+        ダイナミックロードされるパッケージを多く含むアプリケーションの作成中に、
+        このマクロを使用して全てのパッケージのコンパイルチェックを実施すると便利です。
+        例えば、アプレットファイルの先頭で以下のように記述します。
+        {curl-code
+            {if-debuggable {import-all-packages}}
+        }
+        これにより、デバッグ可能なアプレットとして起動する度に全てのパッケージが
+        最初にインポートされ、コンパイルエラーを直ちに発見することができます。
+    }
+}
+{define-macro public {import-all-packages
+                         ?parameter:{optional look-in-delegates? = ?:{literal bool}}
+                     }
+    def look-in-delegates? =
+        {syntax-switch
+            parameter,
+            must-match? = true
+         case {pattern} do
+            true
+         case {pattern look-in-delegates? = ?val:{literal bool}} do
+            val.value asa bool
+        }
+    def package-selectors = {{Array-of ComponentSelector}}
+    def any-package = {ComponentSelector component-type = "package"}
+    {if look-in-delegates? then
+        {for delegate in macro-env.manifest.all-delegates do
+            {delegate.lookup
+                any-package,
+                out = package-selectors,
+                look-in-delegates? = false
+            }
+        }
+     else
+        {macro-env.manifest.lookup
+            any-package,
+            out = package-selectors,
+            look-in-delegates? = false
+        }
+    }
+    def package-names = {{Set-of String}}
+    {for ps in package-selectors do
+        {if-non-null name = ps.name then
+            {package-names.insert name}
+        }
+    }
+    def result = {{Array-of CurlSource}}
+    {for name in package-names do
+        {result.append
+            {expand-template
+                {import ?{Identifier name}}
+            }
+        }
+    }
+    {return {expand-template ?result}}
+}
