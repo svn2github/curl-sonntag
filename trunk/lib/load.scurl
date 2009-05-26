@@ -33,15 +33,9 @@
 {import * from CURL.UTIL.POINTER-TO}
 
 {include
-||--    "array.scurl",
-||--    "collect.scurl",
-||--    "if-local-applet.scurl",
     "import-all-packages.scurl",
     "get-current-manifest.scurl",
-||--    "only-if.scurl",
-||--    "visit-super-classes.scurl",
     "walk-graphics.scurl",
     "ObjectBindingContext.scurl",
     "WeaklyArray-of.scurl"
-||--    "misc.scurl"
 }
