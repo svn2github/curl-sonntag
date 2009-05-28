@@ -15,7 +15,7 @@
 |||
 ||| @authors Yoshitaka Fukuta
 |||
-{curl 6.0 manifest}
+{curl 7.0, 6.0 manifest}
 {curl-file-attributes character-encoding = "shift-jis"}
 {manifest COM.CURLAP.SONNTAG,
     version = "0.6"
