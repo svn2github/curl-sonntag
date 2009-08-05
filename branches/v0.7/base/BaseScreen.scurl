@@ -1,0 +1,133 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        Sonntag フレームワークにおける {pop スクリーン} の基底クラス。
+    }
+}
+{define-class public abstract BaseScreen
+  {inherits ScreenCommandContext, ScreenMessageEventTarget, ScreenFeed}
+
+  field private _graphic:#Graphic
+  field private find-helper:FindGraphicHelper
+
+  {constructor public {default}
+    set self.find-helper = {FindGraphicHelper self}
+  }
+
+  {doc-next
+    {purpose この {pop スクリーン} の {pop スクリーングラフィック}。}
+    {details
+        {pop スクリーングラフィック} オブジェクトは、このゲッターが初めて参照された時点で
+        {docref-abbr BaseScreen.create-graphic} により作成されます。
+    }
+  }
+  {getter public {graphic}:Graphic
+    {if self._graphic == null then
+        set self._graphic = {self.create-graphic}
+        set self._graphic.screen = self
+    }
+    {return {non-null self._graphic}}
+  }
+
+  {doc-next
+    {purpose この {pop スクリーン} の {pop スクリーングラフィック} を作成します。}
+  }
+  {method protected abstract {create-graphic}:Graphic}
+
+  {doc-next
+    {purpose
+        {pop スクリーングラフィック} 内の {docref Graphic}
+        を名前で検索します。
+    }
+    {parameter name,
+        検索する {docref Graphic} の {docref-abbr Graphic.name} の値。
+    }
+    {return-vals
+        検索された {docref Graphic}。
+        {param name} に一致する {docref Graphic} が見つからなかった場合は
+        {ctext null} を返します。
+    }
+  }
+  {method public {find-graphic-by-name
+                     name:String
+                 }:#Graphic
+    {return {self.find-helper.find name}}
+  }
+
+  ||| ScreenFeed methods
+
+  || docs inherited
+  {method public {to-Screen}:BaseScreen
+    {return self}
+  }
+
+}
+
+
+{define-class FindGraphicHelper
+  field private screen:BaseScreen
+  field private mapping:{Memoizer-of String, #Graphic}
+  field private find-proc:{proc-type {String}:#Graphic}
+  field private find-count:int = 0
+  {constructor {default screen:BaseScreen}
+    set self.screen = screen
+    set self.find-proc =
+        {fn name =>
+            {inc self.find-count}
+            let found-object:#Graphic = null
+            {walk-graphics
+                self.screen.graphic,
+                {fn g =>
+                    {if-non-null gn = g.name then
+                        set self.mapping[gn] = g
+                        {if gn == name then
+                            set found-object = g
+                        }
+                    }
+                },
+                prune-proc = {fn => found-object != null},
+                ensure-ui-generated? = true
+            }
+            found-object
+        }
+    set self.mapping =
+        {new {Memoizer-of String, #Graphic},
+            self.find-proc
+        }
+  }
+  {method {find name:String}:#Graphic
+    def cnt = self.find-count
+    def g = self.mapping[name]
+    def got-cache? = (cnt == self.find-count)
+    {if not got-cache? then
+        {return g}
+    }
+    {if g != null and
+        g.screen == self.screen
+        and g.name == name
+     then
+        || valid cache
+        {return g}
+    }
+    {return {self.find-proc name}}
+  }
+}

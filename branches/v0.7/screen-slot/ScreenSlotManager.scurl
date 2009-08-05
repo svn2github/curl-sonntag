@@ -1,0 +1,77 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{let _screen-slot-manager:#ScreenSlotManager = null}
+
+{doc-next
+    {purpose {docref ScreenSlotManager} オブジェクトを返します。}
+}
+{define-proc public {get-screen-slot-manager}:ScreenSlotManager
+    {if-non-null _screen-slot-manager then
+        {return _screen-slot-manager}
+    }
+    set _screen-slot-manager = {ScreenSlotManager}
+    {return {non-null _screen-slot-manager}}
+}
+
+{doc-next
+    {purpose {docref ScreenSlot} オブジェクトを管理するクラス。}
+}
+{define-class public ScreenSlotManager
+
+  field private constant slots:{WeaklyArray-of ScreenSlot}
+
+  || cannot instantiate from outside
+  {constructor package {default}
+    set self.slots = {new {WeaklyArray-of ScreenSlot},
+                         keep-clean? = true
+                     }
+  }
+
+  {method public {register-slot slot:ScreenSlot}:void
+    {if {self.slots.find slot} == -1 then
+        {self.slots.append slot}
+    }
+  }
+
+  {method public {unregister-slot slot:ScreenSlot}:void
+    def index = {self.slots.find slot}
+    {if index != -1 then
+        {self.slots.remove index}
+    }
+  }
+
+  {method public {get-slot name:String}:#ScreenSlot
+    {for slot in self.slots do
+        {if slot.name == name then
+            {return slot}
+        }
+    }
+    {return null}
+  }
+
+  {method public {get-non-null-slot name:String}:ScreenSlot
+    {if-non-null slot = {self.get-slot name} then
+        {return slot}
+    }
+    {error {lmessage slot '{value name}' not found.}}
+  }
+
+}

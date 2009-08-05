@@ -1,0 +1,168 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose 全ての要素への参照をウィークポインタで保持する配列。}
+}
+{define-class public final {WeaklyArray-of t:Type}
+
+  || 'true'の場合、要素の参照直前に'sweep'されていることが保証されます
+  field public keep-clean?:bool = false
+
+  field private constant _array:{Array-of {WeakPointer-to t}}
+
+  || 最後に'do-sweep'を行った時点の'garbage-collect-count'
+  field private last-gc-seq:int
+
+  {constructor public {default
+                          keep-clean?:bool = false,
+                          efficient-size:int = -1,
+                          ...:#t
+                      }
+    set self.keep-clean? = keep-clean?
+    set self.last-gc-seq = {garbage-collect-count}
+    {if efficient-size < 0 then
+        def size = {count-arguments ...}
+        {if size > 0 then
+            set efficient-size = size
+        }
+    }
+    set self._array = {new {Array-of {WeakPointer-to t}},
+                          efficient-size = efficient-size
+                      }
+    {for e in ... do
+        {self.append e}
+    }
+  }
+
+  ||| Array-of protocol impl
+
+  {getter public {empty?}:bool
+    {self.attempt-sweep}
+    {return self._array.empty?}
+  }
+
+  {getter public {size}:int
+    {self.attempt-sweep}
+    {return self._array.size} 
+  }
+
+  {method public {append e:#t}:void
+    || don't need '{self.attempt-sweep}'.
+    {self._array.append {self.weaken e}}
+  }
+
+  {method public {clear}:void
+    {self._array.clear}
+  }
+
+  {method public {find
+                     e:#t,
+                     equality-proc:#{proc-type {#t, #t}:bool} = null,
+                     search-direction:SearchDirection = SearchDirection.forward,
+                     starting-index:int =
+                         {if search-direction == SearchDirection.forward then 0 else self.size - 1}
+                 }:int
+    {self.attempt-sweep}
+    def pointer-equality-proc =
+        {if-non-null equality-proc then
+            {proc {p1:{WeakPointer-to t}, p2:{WeakPointer-to t}}:bool
+                {return {equality-proc p1.value, p2.value}}
+            }
+         else
+            {proc {p1:{WeakPointer-to t}, p2:{WeakPointer-to t}}:bool
+                {return p1.value == p2.value}
+            }
+        }
+    {return
+        {self._array.find
+            {self.weaken e},
+            equality-proc = pointer-equality-proc,
+            search-direction = search-direction,
+            starting-index = starting-index
+        }
+    }
+  }
+
+  {method public {get index:int}:#t
+    {self.attempt-sweep}
+    {return self._array[index].value}
+  }
+
+  {method public {remove
+                     index:int,
+                     length:int = 1,
+                     error-if-missing?:bool = true
+                 }:void
+    {self.attempt-sweep}
+    {self._array.remove
+        index,
+        length = length,
+        error-if-missing? = error-if-missing?
+    }
+  }
+
+  {method public {set index:int, element:#t}:void
+    {self.attempt-sweep}
+    set self._array[index] = {self.weaken element}
+  }
+
+  {method public {to-Iterator}:{Iterator-of #t}
+    {self.attempt-sweep}
+    def array = self._array
+    def values = {new {Array-of #t},
+                     efficient-size = array.size
+                 }
+    {for ptr in array do
+        {values.append ptr.value}
+    }
+    {return {values.to-Iterator}}
+  }
+
+  ||| own methods
+
+  {getter public {maybe-stale?}:bool
+    {return self.last-gc-seq != {garbage-collect-count}}
+  }
+
+  {method public {sweep force?:bool = false}:void
+    {if self.maybe-stale? or force? then
+        {self.do-sweep}
+    }
+  }
+
+  {method private {do-sweep}:void
+    {self._array.filter
+        {fn p => p.value != null}
+    }
+    set self.last-gc-seq = {garbage-collect-count}
+  }
+
+  {method private {attempt-sweep}:void
+    {if self.keep-clean? then
+        {self.sweep}
+    }
+  }
+
+  {method private {weaken val:#t}:{WeakPointer-to t}
+    {return {{WeakPointer-to t} value = val}}
+  }
+
+}
