@@ -1,0 +1,19 @@
+{curl 8.0 manifest}
+{curl-file-attributes character-encoding = "shift-jis"}
+{manifest COM.CURL.SONNTAG.SUPPORT}
+
+{delegate-to COM.CURL.CDU,
+    location = "../lib/CDU/manifest.mcurl"
+}
+
+{delegate-to COM.CURL.SONNTAG,
+    location = "../code/manifest.mcurl"
+}
+
+{component file classic-project.cprj,
+    location = "classic-project.cprj"
+}
+
+{component file project.cprj,
+    location = "project.cprj"
+}

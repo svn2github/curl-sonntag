@@ -15,21 +15,21 @@
 |||
 ||| @authors Yoshitaka Fukuta
 |||
-{curl 7.0, 6.0 package}
+{curl 6.0, 7.0, 8.0 package}
 {curl-file-attributes character-encoding = "shift-jis"}
 
 {doc
-    type = package, COM.CURLAP.SONNTAG.EVENT-BUS
+    type = package, COM.CURL.SONNTAG.EVENT-BUS
     {purpose
         このパッケージは {pop イベントバス} メカニズムを提供します。
     }
 }
 
-{package COM.CURLAP.SONNTAG.EVENT-BUS,
+{package COM.CURL.SONNTAG.EVENT-BUS,
     {compiler-directives careful? = true}
 }
 
-{import * from COM.CURLAP.SONNTAG.LIB}
+{import * from COM.CURL.SONNTAG.LIB}
 
 {include
     "EventBus.scurl",

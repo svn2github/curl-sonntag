@@ -15,22 +15,22 @@
 |||
 ||| @authors Yoshitaka Fukuta
 |||
-{curl 7.0, 6.0 package}
+{curl 6.0, 7.0, 8.0 package}
 {curl-file-attributes character-encoding = "shift-jis"}
 
 {doc
-    type = package, COM.CURLAP.SONNTAG.SCREEN-SLOT
+    type = package, COM.CURL.SONNTAG.SCREEN-SLOT
     {purpose
         このパッケージは {pop スクリーンスロット} の機能を提供します。
     }
 }
 
-{package COM.CURLAP.SONNTAG.SCREEN-SLOT,
+{package COM.CURL.SONNTAG.SCREEN-SLOT,
     {compiler-directives careful? = true}
 }
 
-{import * from COM.CURLAP.SONNTAG.BASE}
-{import * from COM.CURLAP.SONNTAG.LIB}
+{import * from COM.CURL.SONNTAG.BASE}
+{import * from COM.CURL.SONNTAG.LIB}
 
 {include
     "ScreenSlot.scurl",

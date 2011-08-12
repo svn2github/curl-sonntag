@@ -15,24 +15,24 @@
 |||
 ||| @authors Yoshitaka Fukuta
 |||
-{curl 7.0, 6.0 package}
+{curl 6.0, 7.0, 8.0 package}
 {curl-file-attributes character-encoding = "shift-jis"}
 
 {doc
-    type = package, COM.CURLAP.SONNTAG.BASE
+    type = package, COM.CURL.SONNTAG.BASE
     {purpose
         このパッケージは Sonntag {pop スクリーン} の基本的な機能を提供します。
     }
 }
 
-{package COM.CURLAP.SONNTAG.BASE,
+{package COM.CURL.SONNTAG.BASE,
     {compiler-directives careful? = true}
 }
 
 {import public * from CURL.GUI.STANDARD}
 {import * from CURL.UTIL.POINTER-TO}
-{import * from COM.CURLAP.SONNTAG.EVENT-BUS}
-{import * from COM.CURLAP.SONNTAG.LIB}
+{import * from COM.CURL.SONNTAG.EVENT-BUS}
+{import * from COM.CURL.SONNTAG.LIB}
 
 {include
     "ScreenCommand.scurl",

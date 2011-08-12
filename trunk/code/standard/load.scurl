@@ -15,11 +15,11 @@
 |||
 ||| @authors Yoshitaka Fukuta
 |||
-{curl 7.0, 6.0 package}
+{curl 6.0, 7.0, 8.0 package}
 {curl-file-attributes character-encoding = "shift-jis"}
 
 {doc
-    type = package, COM.CURLAP.SONNTAG.STANDARD
+    type = package, COM.CURL.SONNTAG.STANDARD
     {purpose
         Sonntag フレームワークを利用したアプリケーションの開発で使用する標準的なパッケージや
         API、構文など一式を提供します。
@@ -27,31 +27,31 @@
     {details
         このパッケージは以下のパッケージをエクスポートします。
         {itemize
-            {item {docref COM.CURLAP.SONNTAG.BASE}}
-            {item {docref COM.CURLAP.SONNTAG.EVENT-BUS}}
-            {item {docref COM.CURLAP.SONNTAG.SCREEN-SLOT}}
+            {item {docref COM.CURL.SONNTAG.BASE}}
+            {item {docref COM.CURL.SONNTAG.EVENT-BUS}}
+            {item {docref COM.CURL.SONNTAG.SCREEN-SLOT}}
         }
     }
 }
 
-{package COM.CURLAP.SONNTAG.STANDARD,
+{package COM.CURL.SONNTAG.STANDARD,
     {compiler-directives careful? = true}
 }
 
 || public imports
-{import public * from COM.CURLAP.SONNTAG.BASE}
-{import public * from COM.CURLAP.SONNTAG.EVENT-BUS}
-{import public * from COM.CURLAP.SONNTAG.SCREEN-SLOT}
+{import public * from COM.CURL.SONNTAG.BASE}
+{import public * from COM.CURL.SONNTAG.EVENT-BUS}
+{import public * from COM.CURL.SONNTAG.SCREEN-SLOT}
 {import public
     import-all-packages
  from
-    COM.CURLAP.SONNTAG.LIB
+    COM.CURL.SONNTAG.LIB
 }
 
 || local imports
 {import * from CURL.LANGUAGE.REFLECTION}
 {import * from CURL.LANGUAGE.SOURCE}
-{import * from COM.CURLAP.SONNTAG.LIB}
+{import * from COM.CURL.SONNTAG.LIB}
 
 {include
     "Screen-of.scurl",

@@ -15,16 +15,16 @@
 |||
 ||| @authors Yoshitaka Fukuta
 |||
-{curl 7.0, 6.0 package}
+{curl 6.0, 7.0, 8.0 package}
 {curl-file-attributes character-encoding = "shift-jis"}
 
 {doc
-    type = package, COM.CURLAP.SONNTAG.LIB
+    type = package, COM.CURL.SONNTAG.LIB
     {purpose
     }
 }
 
-{package COM.CURLAP.SONNTAG.LIB,
+{package COM.CURL.SONNTAG.LIB,
     {compiler-directives careful? = true}
 }
 

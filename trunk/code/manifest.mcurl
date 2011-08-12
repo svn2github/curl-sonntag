@@ -15,28 +15,36 @@
 |||
 ||| @authors Yoshitaka Fukuta
 |||
-{curl 7.0, 6.0 manifest}
+{curl 6.0, 7.0, 8.0 manifest}
 {curl-file-attributes character-encoding = "shift-jis"}
-{manifest COM.CURLAP.SONNTAG,
-    version = "0.7"
+{manifest COM.CURL.SONNTAG,
+    version = "0.8"
 }
 
-{component package COM.CURLAP.SONNTAG.LIB,
+{component package COM.CURL.SONNTAG.LIB,
     location = "lib/load.scurl"
 }
 
-{component package COM.CURLAP.SONNTAG.EVENT-BUS,
+{component package COM.CURL.SONNTAG.EVENT-BUS,
     location = "event-bus/load.scurl"
 }
 
-{component package COM.CURLAP.SONNTAG.BASE,
+{component package COM.CURL.SONNTAG.BASE,
     location = "base/load.scurl"
 }
 
-{component package COM.CURLAP.SONNTAG.SCREEN-SLOT,
+{component package COM.CURL.SONNTAG.SCREEN-SLOT,
     location = "screen-slot/load.scurl"
 }
 
-{component package COM.CURLAP.SONNTAG.STANDARD,
+{component package COM.CURL.SONNTAG.STANDARD,
     location = "standard/load.scurl"
+}
+
+{component file classic-project.cprj,
+    location = "classic-project.cprj"
+}
+
+{component file project.cprj,
+    location = "project.cprj"
 }
