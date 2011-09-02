@@ -1,0 +1,69 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose {pop スクリーンコマンド} を保有する {docref CommandContext}。}
+}
+{define-class public abstract ScreenCommandContext {inherits CommandContext}
+
+  {method protected {create-command name:String}:#Command
+    {if-non-null cmd = {self.create-registered-command name} then
+        {return cmd}
+    }
+    {return {super.create-command name}}
+  }
+
+  {doc-next
+    {purpose
+        この {ctext ScreenCommandContext} に紐づき、指定された名前をもつ
+        {pop スクリーンコマンド} があればそれを返します。
+    }
+    {parameter name, {pop スクリーンコマンド} の名前。}
+    {details
+        このメソッドは {docref-abbr ScreenCommandContext.create-command}
+        から呼び出されます。
+        {pop スクリーンコマンド} は {docref ScreenCommandContext.registry}
+        から検索されます。
+    }
+  }
+  {method protected {create-registered-command
+                        name:String
+                    }:#ScreenCommand
+    def cmd-type = {{this-class}.registry.get-registered-command
+                       name,
+                       {type-of self} asa ClassType
+                   }
+    {if-non-null cmd-type then
+        def cmd = {with-compiler-directives
+                      allow-any-calls? = true
+                   do
+                      {new cmd-type, self}
+                  }
+        {return cmd asa ScreenCommand}
+    }
+    {return null}
+  }
+
+  {doc-next
+    {purpose {docref ScreenCommandRegistry} のシングルトンオブジェクト。}
+  }
+  let public constant registry:ScreenCommandRegistry = {DefaultScreenCommandRegistry}
+
+}

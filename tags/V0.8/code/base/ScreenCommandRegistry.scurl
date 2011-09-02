@@ -1,0 +1,149 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp. All Rights Reserved.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|||
+||| @authors Yoshitaka Fukuta
+|||
+
+{curl-file-attributes character-encoding = "shift-jis"}
+
+{doc-next
+    {purpose
+        {pop スクリーン} と {pop スクリーンコマンド} のマッピングを管理するオブジェクト。
+    }
+}
+{define-class public abstract ScreenCommandRegistry
+
+  {doc-next
+    {purpose 登録されている　{pop スクリーンコマンド} を取得します。}
+    {parameter name,
+        {pop スクリーンコマンド} の名前。
+    }
+    {parameter screen-type,
+        {pop スクリーン} の {docref ClassType}。
+    }
+    {return-vals
+        {pop スクリーンコマンド} の {docref ClassType}。
+        見つからなかった場合は {ctext null} を返します。
+    }
+  }
+  {method public abstract {get-registered-command
+                              name:String,
+                              screen-type:ClassType
+                          }:#ClassType
+  }
+
+  {doc-next
+    {purpose {pop スクリーンコマンド} を登録します。}
+    {parameter name,
+        {pop スクリーンコマンド} の名前。
+    }
+    {parameter screen-type,
+        {pop スクリーン} の {docref ClassType}。
+    }
+    {parameter command-type,
+        {pop スクリーンコマンド} の {docref ClassType}。
+    }
+  }
+  {method public abstract {register-command
+                              name:String,
+                              screen-type:ClassType,
+                              command-type:ClassType
+                          }:bool
+  }
+
+  {doc-next
+    {purpose {pop スクリーンコマンド} の登録を解除します。}
+    {parameter name,
+        {pop スクリーンコマンド} の名前。
+    }
+    {parameter screen-type,
+        {pop スクリーン} の {docref ClassType}。
+    }
+    {parameter command-type,
+        {pop スクリーンコマンド} の {docref ClassType}。
+    }
+  }
+  {method public abstract {unregister-command
+                              name:String,
+                              screen-type:ClassType,
+                              command-type:ClassType
+                          }:bool
+  }
+
+}
+
+{doc-next
+    {purpose {docref ScreenCommandRegistry} の実装。}
+}
+{define-class public DefaultScreenCommandRegistry {inherits ScreenCommandRegistry}
+
+  field private constant mapping:{HashTable-of ScreenCommandTypeKey, ClassType}
+
+  {constructor public {default}
+    set self.mapping = {new {HashTable-of ScreenCommandTypeKey, ClassType}}
+  }
+
+  {method public {get-registered-command
+                     name:String,
+                     screen-type:ClassType
+                 }:#ClassType
+    def key = {self.make-key name, screen-type}
+    {return {self.mapping.get-if-exists key}}
+  }
+
+  {method public {register-command
+                     name:String,
+                     screen-type:ClassType,
+                     command-type:ClassType
+                 }:bool
+    {unless
+        {screen-type.subtype-of? ScreenCommandContext} and
+        {command-type.subtype-of? ScreenCommand}
+     do
+        {return false}
+    }
+    def key = {self.make-key name, screen-type}
+    set self.mapping[key] = command-type
+    {return true}
+  }
+
+  {method public {unregister-command
+                     name:String,
+                     screen-type:ClassType,
+                     command-type:ClassType
+                 }:bool
+    def key = {self.make-key name, screen-type}
+    {if {self.mapping.key-exists? key} then
+        {self.mapping.remove key}
+        {return true}
+    }
+    {return false}
+  }
+
+  {method private {make-key name:String, screen-type:ClassType}:ScreenCommandTypeKey
+    {return {ScreenCommandTypeKey name, screen-type}}
+  }
+
+}
+
+|| used by 'DefaultScreenCommandRegistry'
+{define-value-class final ScreenCommandTypeKey
+  field constant name:String
+  field constant screen-type:ClassType
+  {constructor {default name:String, screen-type:ClassType}
+    set self.name = name
+    set self.screen-type = screen-type
+  }
+}
